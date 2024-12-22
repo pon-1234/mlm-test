@@ -52,7 +52,7 @@
 
 ### 1.4 `member_positions` (組織ツリー内の配置情報)
 
-**変更点**：
+**変更点**:
 
 - 紹介者ID（introducer_id）のみを保持し、上位系統は`organization_relationships`で管理。
 - `member_id`と`start_season`の複合一意制約を検討。
@@ -73,14 +73,14 @@
 
 ### 1.5 `organization_relationships`（上下関係ツリー管理）
 
-**変更点**：
+**変更点**:
 
 - depthは残し、パフォーマンス向上のために使用。
 - 大規模組織でのパフォーマンス課題に備え、(parent_member_id, child_member_id)にINDEX付与。
 
 | カラム名 | 型 | NULL許可 | デフォルト | 説明 |
 | --- | --- | --- | --- | --- |
-| rel_id (PK) | BIGINT UNSIGNED | NO | AUTO_INCREMENT | 関係レ��ードID |
+| rel_id (PK) | BIGINT UNSIGNED | NO | AUTO_INCREMENT | 関係レコードID |
 | parent_member_id(FK) | BIGINT UNSIGNED | NO |  | 上位会員ID |
 | child_member_id(FK) | BIGINT UNSIGNED | NO |  | 下位会員ID |
 | depth | INT | NO |  | 親から子までの階層深度 |
@@ -97,7 +97,7 @@
 
 ### 2.1 `products` (商品マスタ)
 
-**変更点**：
+**変更点**:
 
 - 在庫管理用の`stock_quantity`を追加
 - カテゴリ分け用の`category_id`を追加（`product_categories`テーブル別途作成想定）
@@ -117,7 +117,7 @@
 
 ### 2.2 `orders` (注文ヘッダ)
 
-**変更点**：
+**変更点**:
 
 - order_number（ユーザ表示用注文番号）追加
 - payment_methodカラム追加
@@ -173,7 +173,7 @@
 
 ### 2.6 `refund_line_items` (返金明細)
 
-| ��ラム名 | 型 | NULL許可 | デフォルト | 説明 |
+| カラム名 | 型 | NULL許可 | デフォルト | 説明 |
 | --- | --- | --- | --- | --- |
 | refund_line_item_id(PK) | BIGINT UNSIGNED | NO | AUTO_INCREMENT | 返金明細ID |
 | refund_id (FK) | BIGINT UNSIGNED | NO |  | 返金ID(refunds) |
@@ -220,7 +220,7 @@
 
 ### 3.4 `commission_details` (報酬明細)
 
-**変更点**：
+**変更点**:
 
 - commission_rule_idを追加想定（commission_rules参照）
 - bonus_typeはENUMで管理、またはcommission_rulesで定義
@@ -291,7 +291,7 @@
 
 ### 5.1 `users` (管理用ユーザ)
 
-**変更点**：
+**変更点**:
 
 - password_salt追加
 - last_login_at追加
@@ -322,14 +322,14 @@
 
 ### 5.4 `audit_logs` (操作監査ログ)
 
-**変更点**：
+**変更点**:
 
 - old_value, new_valueを追加し変更内容追跡可能に
 
 | カラム名 | 型 | NULL許可 | デフォルト | 説明 |
 | --- | --- | --- | --- | --- |
 | audit_id (PK) | BIGINT UNSIGNED | NO | AUTO_INCREMENT | 監査ログID |
-| user_id (FK) | BIGINT UNSIGNED | YES | NULL | 実��ユーザID(users) NULL=システム |
+| user_id (FK) | BIGINT UNSIGNED | YES | NULL | 実行ユーザID(users) NULL=システム |
 | action | VARCHAR(255) | NO |  | アクション名(INSERT_MEMBER等) |
 | target_table | VARCHAR(100) | YES | NULL | 対象テーブル名 |
 | target_id | BIGINT UNSIGNED | YES | NULL | 対象レコードID |
@@ -344,9 +344,9 @@
 
 ### 6.1 `support_tickets` (お問い合わせ)
 
-**変更点**：
+**変更点**:
 
-- priority(優���度)追加
+- priority(優先度)追加
 - assigned_user_id(担当者)追加
 
 | カラム名 | 型 | NULL許可 | デフォルト | 説明 |
@@ -386,5 +386,3 @@
 - `payout_batches` 1 - N `payout_details`
 - `users` 1 - N `audit_logs`（user_id NULL可）
 - `support_tickets` 1 - N `support_ticket_messages`
-
----

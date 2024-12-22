@@ -1,6 +1,6 @@
-## 1. 会員管理モジュール
+# 1. 会員管理モジュール
 
-### 1.1 会員登録機能
+## 1.1 会員登録機能
 
 **概要**：新規会員を登録する機能。
 
@@ -64,7 +64,7 @@
 
 ---
 
-### 1.2 会員検索機能
+## 1.2 会員検索機能
 
 **概要**：複数条件（ID、氏名、紹介者ID、住所、契約日など）での会員検索
 
@@ -96,96 +96,110 @@
 
 ---
 
-### 1.3 組織整合性チェック機能
+## 1.3 組織整合性チェック機能
 
 **概要**：新規登録・組織異動時に無限ループや不整合を検出
 
 **想定ユースケース**：
+
 1. 会員登録時：新規会員の紹介者構造が循環しないことを確認
 2. 組織異動時：異動先の構造が循環を作らないことを確認
 
 **対応API例**：
+
 - 会員登録時：`POST /members`
 - 組織異動時：`PUT /organization/move`
 
 ### 処理フロー
 
-#### 新規会員登録時のチェック
+### 新規会員登録時のチェック
+
 1. introducer_idの存在確認
 2. organization_relationshipsテーブルを使用し、introducer_idから上位方向へ辿って循環がないか確認
-   ```sql
-   -- 再帰CTEを使用した例
-   WITH RECURSIVE upline AS (
-     SELECT parent_member_id, child_member_id, depth, ARRAY[child_member_id] as path
-     FROM organization_relationships
-     WHERE child_member_id = :introducer_id
-     UNION ALL
-     SELECT r.parent_member_id, r.child_member_id, r.depth,
-            path || r.child_member_id
-     FROM organization_relationships r
-     INNER JOIN upline u ON u.parent_member_id = r.child_member_id
-     WHERE NOT r.child_member_id = ANY(path)
-   )
-   SELECT * FROM upline;
-   ```
+    
+    ```sql
+    -- 再帰CTEを使用した例
+    WITH RECURSIVE upline AS (
+      SELECT parent_member_id, child_member_id, depth, ARRAY[child_member_id] as path
+      FROM organization_relationships
+      WHERE child_member_id = :introducer_id
+      UNION ALL
+      SELECT r.parent_member_id, r.child_member_id, r.depth,
+             path || r.child_member_id
+      FROM organization_relationships r
+      INNER JOIN upline u ON u.parent_member_id = r.child_member_id
+      WHERE NOT r.child_member_id = ANY(path)
+    )
+    SELECT * FROM upline;
+    
+    ```
+    
 
-#### 組織異動時のチェック
+### 組織異動時のチェック
+
 1. 異動元会員の下位ツリーを取得
 2. 異動先が下位ツリーに含まれていないか確認
-   ```sql
-   -- closure tableを使用した例
-   SELECT COUNT(*) 
-   FROM organization_relationships 
-   WHERE parent_member_id = :source_member_id 
-   AND child_member_id = :target_member_id;
-   ```
+    
+    ```sql
+    -- closure tableを使用した例
+    SELECT COUNT(*)
+    FROM organization_relationships
+    WHERE parent_member_id = :source_member_id
+    AND child_member_id = :target_member_id;
+    
+    ```
+    
 
 ### エラーハンドリング
 
-#### エラーケースと応答
-1. 循環構造検出時
-   - ステータスコード：400 Bad Request
-   - エラーメッセージ：「紹介構造��循環しています。指定された紹介者構造を確認してください。」
-   - レスポンス例：
-     ```json
-     {
-       "error": "CIRCULAR_REFERENCE",
-       "message": "紹介構造が循環しています",
-       "details": {
-         "detected_path": ["1001", "1002", "1003", "1001"]
-       }
-     }
-     ```
+### エラーケースと応答
 
+1. 循環構造検出時
+    - ステータスコード：400 Bad Request
+    - エラーメッセージ：「紹介構造が循環しています。指定された紹介者構造を確認してください。」
+    - レスポンス例：
+        
+        ```json
+        {
+          "error": "CIRCULAR_REFERENCE",
+          "message": "紹介構造が循環しています",
+          "details": {
+            "detected_path": ["1001", "1002", "1003", "1001"]
+          }
+        }
+        
+        ```
+        
 2. 系列違い混在時
-   - ステータスコード：400 Bad Request
-   - エラーメッセージ：「異なる系列間での組織変更はできません」
-   - レスポンス例：
-     ```json
-     {
-       "error": "INVALID_ORGANIZATION_STRUCTURE",
-       "message": "異なる系列間での組織変更はできません",
-       "details": {
-         "source_tree": "A系列",
-         "target_tree": "B系列"
-       }
-     }
-     ```
+    - ステータスコード：400 Bad Request
+    - エラーメッセージ：「異なる系列間での組織変更はできません」
+    - レスポンス例：
+        
+        ```json
+        {
+          "error": "INVALID_ORGANIZATION_STRUCTURE",
+          "message": "異なる系列間での組織変更はできません",
+          "details": {
+            "source_tree": "A系列",
+            "target_tree": "B系列"
+          }
+        }
+        
+        ```
+        
 
 ### パフォーマンス考慮事項
 
 1. organization_relationshipsテーブルのインデックス最適化
-   - (parent_member_id, child_member_id)の複合インデックス
-   - depthカラムのインデックス（階層検索の高速化）
-
+    - (parent_member_id, child_member_id)の複合インデックス
+    - depthカラムのインデックス（階層検索の高速化）
 2. 大規模組織対応
-   - 再帰クエリの深さ制限設定
-   - closure tableパターンでの事前計算活用
-   - キャッシュ戦略の検討（Redis等でのツリー構造キャッシュ）
-
+    - 再帰クエリの深さ制限設定
+    - closure tableパターンでの事前計算活用
+    - キャッシュ戦略の検討（Redis等でのツリー構造キャッシュ）
 3. バッチ処理での整合性チェック
-   - 夜間バッチで全組織構造の整合性を検証
-   - 問題検出時は管理者へ通知
+    - 夜間バッチで全組織構造の整合性を検証
+    - 問題検出時は管理者へ通知
 
 ---
 
@@ -264,102 +278,111 @@
 **対応画面**：管理画面「返金処理」フォーム
 
 **対応API**：
+
 - 返金登録：`POST /refunds`
 - 報酬再計算：`POST /refunds/{refund_id}/recalculate_commissions`
 
 ### 処理フロー
 
-#### 1. 返金情報の登録
+### 1. 返金情報の登録
+
 1. 注文情報と返金内容を受け取る
-   - 対象注文ID
-   - 返金対象商品と数量（部分返金の場合）
-   - 返金理由（クーリングオフ/返品/その他）
+    - 対象注文ID
+    - 返金対象商品と数量（部分返金の場合）
+    - 返金理由（クーリングオフ/返品/その他）
 2. `refunds`テーブルに返金ヘッダを登録
 3. `refund_line_items`に返金対象商品の明細を登録
 
-#### 2. 報酬再計算処理
+### 2. 報酬再計算処理
+
 1. 返金タイプの判定
-   - 全額返金（クーリングオフ等）の場合：該当注文の全commission_detailsを無効化
-   - 部分返金の場合：返金額に応じた比例配分で再計算
-
+    - 全額返金（クーリングオフ等）の場合：該当注文の全commission_detailsを無効化
+    - 部分返金の場合：返金額に応じた比例配分で再計算
 2. 部分返金時の計算例：
-   ```sql
-   -- 返金による報酬減額の計算
-   SELECT 
-     cd.commission_id,
-     cd.amount * (r.refund_amount / o.total_amount) as deduction_amount
-   FROM commission_details cd
-   JOIN orders o ON cd.order_id = o.order_id
-   JOIN refunds r ON r.order_id = o.order_id
-   WHERE r.refund_id = :refund_id;
-   ```
-
+    
+    ```sql
+    -- 返金による報酬減額の計算
+    SELECT
+      cd.commission_id,
+      cd.amount * (r.refund_amount / o.total_amount) as deduction_amount
+    FROM commission_details cd
+    JOIN orders o ON cd.order_id = o.order_id
+    JOIN refunds r ON r.order_id = o.order_id
+    WHERE r.refund_id = :refund_id;
+    
+    ```
+    
 3. 報酬の調整処理
-   - 未払い報酬の場合：
-     - `commission_details`の該当レコードを更新
-     - `member_commissions`の合計額を再計算
-   - 支払済み報酬の場合：
-     - `adjustments`テーブルに負の調整金を登録
-     ```sql
-     INSERT INTO adjustments (
-       member_id, period_id, amount, reason, 
-       refund_id, order_id
-     ) VALUES (
-       :member_id, :period_id, 
-       -:deduction_amount, 
-       'refund_adjustment',
-       :refund_id, :order_id
-     );
-     ```
-
+    - 未払い報酬の場合：
+        - `commission_details`の該当レコードを更新
+        - `member_commissions`の合計額を再計算
+    - 支払済み報酬の場合：
+        - `adjustments`テーブルに負の調整金を登録
+        
+        ```sql
+        INSERT INTO adjustments (
+          member_id, period_id, amount, reason,
+          refund_id, order_id
+        ) VALUES (
+          :member_id, :period_id,
+          -:deduction_amount,
+          'refund_adjustment',
+          :refund_id, :order_id
+        );
+        
+        ```
+        
 4. 上位者への影響反映
-   - organization_relationshipsを使用して影響を受ける上位者を特定
-   - 各上位の報酬も同様の計算ロジックで調整
+    - organization_relationshipsを使用して影響を受ける上位者を特定
+    - 各上位の報酬も同様の計算ロジックで調整
 
 ### エラーハンドリング
 
 1. バリデーションエラー（400 Bad Request）
-   - 返金額が注文金額を超過
-   - 返金対象商品の数量が注文数量を超過
-   - レスポンス例：
-     ```json
-     {
-       "error": "INVALID_REFUND_AMOUNT",
-       "message": "返金額が注文金額を超過しています",
-       "details": {
-         "order_amount": 10000,
-         "refund_amount": 12000
-       }
-     }
-     ```
-
+    - 返金額が注文金額を超過
+    - 返金対象商品の数量が注文数量を超過
+    - レスポンス例：
+        
+        ```json
+        {
+          "error": "INVALID_REFUND_AMOUNT",
+          "message": "返金額が注文金額を超過しています",
+          "details": {
+            "order_amount": 10000,
+            "refund_amount": 12000
+          }
+        }
+        
+        ```
+        
 2. 報酬計算エラー（500 Internal Server Error）
-   - 報酬計算中の予期せぬエラー
-   - レスポンス例：
-     ```json
-     {
-       "error": "COMMISSION_CALCULATION_ERROR",
-       "message": "報酬の再計算中にエラーが発生しました",
-       "details": {
-         "commission_id": "1234",
-         "error_detail": "..."
-       }
-     }
-     ```
+    - 報酬計算中の予期せぬエラー
+    - レスポンス例：
+        
+        ```json
+        {
+          "error": "COMMISSION_CALCULATION_ERROR",
+          "message": "報酬の再計算中にエラーが発生しました",
+          "details": {
+            "commission_id": "1234",
+            "error_detail": "..."
+          }
+        }
+        
+        ```
+        
 
 ### パフォーマンス考慮事項
 
 1. トランザクション管理
-   - 返金登録から報酬再計算までを単一トランザクションで処理
-   - 大規模な再計算が必要な場合はバックグラウンドジョブ化
-
+    - 返金登録から報酬再計算までを単一トランザクションで処理
+    - 大規模な再計算が必要な場合はバックグラウンドジョブ化
 2. インデックス最適化
-   - `commission_details`の(order_id)インデックス
-   - `adjustments`の(member_id, period_id)複合インデックス
-
+    - `commission_details`の(order_id)インデックス
+    - `adjustments`の(member_id, period_id)複合インデックス
 3. 監視とログ
-   - 返金処理と報酬再計算の実行時間監視
-   - 調整金発生履歴の詳細なログ記録
+    - 返金処理と報酬再計算の実行時間監視
+    - 調整金発生履歴の詳細なログ記録
 
 ---
 
@@ -414,7 +437,7 @@
 
 **概要**：CSVファイルをアップロードして複数会員分の調整金を一括登録
 
-**対応画面**：管理画面��調整金一括インポート」
+**対応画面**：管理画面「調整金一括インポート」
 
 **対応API**：`POST /imports/adjustments`
 
@@ -502,5 +525,3 @@
 2. テンプレートレンダリング（pdfkit等使用）
 3. PDFストリームを返却
 4. フロントでダウンロード
-
----
