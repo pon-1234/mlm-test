@@ -1,3 +1,0 @@
-interface UserLoginData {
-    token: string;
-}
