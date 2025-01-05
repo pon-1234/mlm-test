@@ -1,9 +1,0 @@
-node_modules/
-
-# env
-.env.production
-.env.loal
-.env.staging
-
-# Build
-dist/
