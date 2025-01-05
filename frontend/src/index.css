@@ -1,0 +1,22 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  @font-face {
+    font-family: 'NotoSansJP';
+    src: url(../public/fonts/NotoSansJP-Regular.ttf);
+  }
+}
+
+.ant-col, .ant-typography, .ant-btn {
+  font-family: 'NotoSansJP';
+}
