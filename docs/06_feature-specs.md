@@ -22,7 +22,7 @@
 | 都道府県(state_province) | string | 必須 | 1〜100文字 | セレクト | "東京都" |
 | 国(country) | string | 必須 | 1〜100文字 | テキスト | "日本" |
 | 契約締結日(contract_date) | date | 必須 | YYYY-MM-DD形式 | 日付選択 | "2024-01-01" |
-| 紹介者ID(introducer_id) | number | 必須 | DB上に存在するmember_id, 自分自身や循環不可 | テキスト/検索 | "10001" |
+| 紹介者ID(introducer_id) | number | 通常必須（rootメンバーのみ NULL可） | DB上に存在するmember_id, 自分自身や循環不可。rootメンバー登録時のみNULL許容。 | テキスト/検索 | "10001" |
 | 活動開始シーズン(start_season) | string | 必須 | 定義済フォーマット(例: "2024Q1") | セレクト | "2024Q1" |
 | 契約プラン(contract_plan) | string | 必須 | プラン定義済マスタテーブル参照 | セレクト | "standard" |
 | 振込先口座情報(bank_xxx) | 複数項目 | 必須 | 銀行名、支店名、口座種別、口座番号、名義必須 | テキスト | "三菱UFJ", "本店", ... |
@@ -32,8 +32,11 @@
 1. リクエスト受領（`POST /members`）
 2. `class-validator`による基本入力バリデーション
 3. 組織整合性チェック：
-    - introducer_idが存在するか確認
-    - organization_relationshipsテーブルを参照し、循環参照がないかチェック
+    - rootメンバー登録時（introducer_id = NULL）の場合：
+        - 既存のrootメンバーが存在しないことを確認
+    - 通常メンバー登録時：
+        - introducer_idが存在するか確認
+        - organization_relationshipsテーブルを参照し、循環参照がないかチェック
 4. 会員データ `members`テーブルへINSERT
 5. 住所データ `member_addresses`、振込先 `member_bank_accounts`、配置情報 `member_positions`をINSERT
 6. organization_relationshipsテーブルに (parent_member_id = introducer_id, child_member_id = 新member_id, depth=1) を追加
@@ -114,8 +117,18 @@
 
 ### 新規会員登録時のチェック
 
-1. introducer_idの存在確認
-2. organization_relationshipsテーブルを使用し、introducer_idから上位方向へ辿って循環がないか確認
+1. rootメンバー登録（introducer_id = NULL）の場合：
+    ```sql
+    -- 既存のrootメンバー存在チェック
+    SELECT COUNT(*)
+    FROM member_positions
+    WHERE introducer_id IS NULL;
+    ```
+    - 既存のrootメンバーが存在する場合はエラー
+
+2. 通常メンバー登録時：
+    - introducer_idの存在確認
+    - organization_relationshipsテーブルを使用し、introducer_idから上位方向へ辿って循環がないか確認
     
     ```sql
     -- 再帰CTEを使用した例
@@ -154,7 +167,21 @@
 
 ### エラーケースと応答
 
-1. 循環構造検出時
+1. rootメンバー登録エラー
+    - ステータスコード：400 Bad Request
+    - エラーメッセージ：「既にrootメンバーが存在します。通常メンバーとして登録してください。」
+    - レスポンス例：
+        ```json
+        {
+          "error": "ROOT_MEMBER_EXISTS",
+          "message": "既にrootメンバーが存在します",
+          "details": {
+            "existing_root_id": "1001"
+          }
+        }
+        ```
+
+2. 循環構造検出時
     - ステータスコード：400 Bad Request
     - エラーメッセージ：「紹介構造が循環しています。指定された紹介者構造を確認してください。」
     - レスポンス例：

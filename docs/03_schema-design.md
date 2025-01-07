@@ -61,7 +61,7 @@
 | --- | --- | --- | --- | --- |
 | position_id (PK) | BIGINT UNSIGNED | NO | AUTO_INCREMENT | ポジションID |
 | member_id (FK) | BIGINT UNSIGNED | NO |  | 会員ID（members） |
-| introducer_id (FK) | BIGINT UNSIGNED | NO |  | 紹介者ID（members.member_id） |
+| introducer_id (FK) | BIGINT UNSIGNED | YES | NULL | 紹介者ID（members.member_id）。rootメンバーのみ NULL 可。それ以外はアプリ側ロジックで NOT NULL を強制 |
 | start_season | VARCHAR(50) | NO |  | 活動開始シーズン |
 | contract_plan | VARCHAR(100) | NO |  | 契約プラン種別 |
 | created_at | DATETIME | NO | CURRENT_TIMESTAMP | 作成日時 |
